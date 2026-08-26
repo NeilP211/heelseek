@@ -78,7 +78,7 @@ async function previousRun() {
  * degraded and the site names the calendar that went quiet, rather than
  * shipping a smaller world and calling it success.
  */
-function flagSilentDropouts(statuses, prev) {
+export function flagSilentDropouts(statuses, prev) {
   if (!prev?.sources) return;
   const before = new Map(prev.sources.map((s) => [s.key, s.count]));
   for (const s of statuses) {
@@ -90,6 +90,42 @@ function flagSilentDropouts(statuses, prev) {
   }
 }
 
+// How long a carried-over copy of a source stays usable.
+export const MAX_STALE_DAYS = 45;
+
+/**
+ * Carry a failed source forward from the last good run instead of dropping it.
+ *
+ * The committed events.json is a real last-known-good snapshot, and campus
+ * events are scheduled well in advance, so yesterday's copy of a calendar is
+ * far more useful than no calendar. This exists because the alumni host blocks
+ * CI and the public relay standing in for it is a free service with no uptime
+ * promise: one 522 should not delete Welcome Wednesdays from the site.
+ *
+ * Only still-future events are reused, and the status stays ok:false so the
+ * page keeps telling the truth about what did not respond.
+ */
+export function carryForwardFailed(statuses, prev, now) {
+  if (!prev?.events?.length) return [];
+  const ageDays = (now - new Date(prev.generatedAt)) / 86_400_000;
+  if (!Number.isFinite(ageDays) || ageDays > MAX_STALE_DAYS) return [];
+
+  const rescued = [];
+  for (const s of statuses) {
+    if (s.ok) continue;
+    const kept = prev.events.filter(
+      (e) => e.source === s.key && Date.parse(e.start) >= now.getTime(),
+    );
+    if (kept.length === 0) continue;
+    rescued.push(...kept);
+    s.stale = true;
+    s.count = kept.length;
+    s.staleAgeHours = Math.round(ageDays * 24);
+    console.log(`  KEEP ${s.key.padEnd(9)} ${kept.length} events carried over from the last good run`);
+  }
+  return rescued;
+}
+
 async function main() {
   const now = new Date();
   console.log(`HeelSeek ingest at ${now.toISOString()}`);
@@ -99,13 +135,13 @@ async function main() {
     results.push(await runSource(source));
   }
 
-  const all = results.flatMap((r) => r.events);
   const statuses = results.map((r) => r.status);
-  const scoped = withinHorizon(all, now);
-  const deduped = dedupe(scoped).sort((a, b) => a.start.localeCompare(b.start));
-
   const prev = await previousRun();
   flagSilentDropouts(statuses, prev);
+
+  const all = [...results.flatMap((r) => r.events), ...carryForwardFailed(statuses, prev, now)];
+  const scoped = withinHorizon(all, now);
+  const deduped = dedupe(scoped).sort((a, b) => a.start.localeCompare(b.start));
 
   const okCount = statuses.filter((s) => s.ok).length;
   if (okCount === 0) {
@@ -157,7 +193,11 @@ async function main() {
   );
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// Only run the pipeline when invoked directly, so tests can import the guards.
+const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

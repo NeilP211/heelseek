@@ -98,6 +98,11 @@ Two guards keep a bad refresh from wrecking the site:
   success, because a WAF answered the feed request with HTTP 200 and an HTML
   page. `assertIcs` and `assertRss` now reject a non-calendar body outright, so
   the run fails honestly instead of quietly losing a whole calendar.
+- **Carry forward.** When a source fails anyway, its still-future events are
+  reused from the last good run (up to 45 days old) instead of disappearing.
+  The status stays `ok: false` and the page says the copy is stale, so the site
+  never pretends a calendar is healthy. This is what keeps one flaky free relay
+  from deleting Welcome Wednesdays: a 522 costs freshness, not the events.
 
 ## Layout
 

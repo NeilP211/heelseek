@@ -22,9 +22,16 @@ const RSS_FEED = 'https://alumni.unc.edu/events/feed/';
 // Last resort only. The WAF blocks GitHub Actions IP ranges specifically, not
 // datacenters in general, so a plain public relay is enough to reach a feed
 // that is already world-readable from any normal browser. Nothing private,
-// authenticated or user-specific ever goes through here, and this route is
+// authenticated or user-specific ever goes through here, and these routes are
 // only attempted after both direct routes have failed.
-const PROXY = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+//
+// More than one relay because these are free services with no uptime promise:
+// the first deploy that used a single relay came back HTTP 522 the next run.
+const RELAYS = [
+  (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+  (url) => `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+  (url) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
 
 export const meta = {
   key: 'alumni',
@@ -128,7 +135,7 @@ export async function fetchEvents() {
   const routes = [
     ['ical', () => fromIcs()],
     ['rss', () => fromRss()],
-    ['rss via relay', () => fromRss(PROXY(RSS_FEED))],
+    ...RELAYS.map((relay, i) => [`rss via relay ${i + 1}`, () => fromRss(relay(RSS_FEED))]),
   ];
   const problems = [];
 

@@ -153,7 +153,9 @@ export default function App() {
     );
   }
 
-  const stale = data.sources.filter((s) => !s.ok);
+  const down = data.sources.filter((s) => !s.ok);
+  const carried = down.filter((s) => s.stale);
+  const missing = down.filter((s) => !s.stale);
 
   return (
     <main className="shell">
@@ -169,10 +171,17 @@ export default function App() {
           <span><strong>{data.sources.filter((s) => s.ok).length}</strong> sources</span>
           <span className="stats__updated">updated {formatRelative(data.generatedAt)}</span>
         </div>
-        {stale.length > 0 && (
+        {carried.length > 0 && (
           <p className="warning">
-            Heads up: {stale.map((s) => s.label).join(', ')} did not respond on the last
-            refresh, so events from there may be missing.
+            {carried.map((s) => s.label).join(', ')} did not respond on the last refresh,
+            so those events are the last good copy
+            {carried[0].staleAgeHours ? ` (about ${carried[0].staleAgeHours}h old)` : ''}.
+          </p>
+        )}
+        {missing.length > 0 && (
+          <p className="warning">
+            {missing.map((s) => s.label).join(', ')} did not respond and had no recent copy
+            to fall back on, so events from there are missing right now.
           </p>
         )}
       </header>
