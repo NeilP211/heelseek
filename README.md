@@ -37,6 +37,23 @@ dedupes the overlap, and puts them behind one filter bar.
 Around 1,300 events on a 365 day horizon. Every source is public and
 unauthenticated, so **this project needs no API keys and no secrets.**
 
+### The alumni feed is special
+
+`alumni.unc.edu` sits behind a WAF that returns **403 to GitHub Actions IP
+ranges specifically**, while serving the same feed happily to a normal browser.
+Header spoofing does not help; it is an IP reputation block, not a bot check.
+
+So that adapter tries three routes and takes the first that returns events:
+
+1. `?ical=1` (richest: full descriptions, categories, geo)
+2. `/events/feed/` RSS (works when iCal is blocked)
+3. the same RSS through a public relay (only reached when both direct routes
+   fail, which in practice means only in CI)
+
+The RSS route turned out to be better in one way anyway: Events Manager emits
+every recurrence as its own item, so RSS gives all 13 Welcome Wednesdays where
+iCal folds the series into one entry.
+
 ## The free food filter
 
 The one students actually use. It combines three signals:
@@ -75,6 +92,12 @@ Two guards keep a bad refresh from wrecking the site:
 - **A shrink guard.** If a refresh produces less than half the events of the
   previous one, the write is refused and the job fails loudly, because that is
   almost always an outage rather than a real drop in campus activity.
+- **A silent dropout guard.** A source that returned events last run and zero
+  this run is marked failed rather than believed. This one is not theoretical:
+  the first live deploy shipped with the alumni feed reporting zero events as a
+  success, because a WAF answered the feed request with HTTP 200 and an HTML
+  page. `assertIcs` and `assertRss` now reject a non-calendar body outright, so
+  the run fails honestly instead of quietly losing a whole calendar.
 
 ## Layout
 
