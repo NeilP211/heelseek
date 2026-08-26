@@ -11,8 +11,10 @@
   --food: #ffc857;
   --free: #6fcf97;
 
-  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --sans: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  /* Arcade wordmark, pixel small-caps, readable techy body. */
+  --display: 'Press Start 2P', 'Silkscreen', ui-monospace, monospace;
+  --mono: 'Silkscreen', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: 'Chakra Petch', system-ui, -apple-system, sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -24,7 +26,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 16px;
+  font-size: 16.5px;
   line-height: 1.45;
   /* Faint Carolina wash so the page does not read as pure grey. */
   background-image: radial-gradient(circle at 15% -10%, rgba(75, 156, 211, 0.14), transparent 55%);
@@ -80,13 +82,17 @@ body {
 .hero { border-bottom: 2px solid var(--line); padding-bottom: 22px; margin-bottom: 26px; }
 
 .logo {
-  font-family: var(--mono);
-  font-weight: 700;
-  font-size: clamp(34px, 8vw, 60px);
-  letter-spacing: -0.03em;
+  font-family: var(--display);
+  font-weight: 400;
+  /* Press Start 2P runs roughly twice as wide per character as a normal face,
+     so this is deliberately smaller than the old wordmark size. */
+  font-size: clamp(20px, 4.2vw, 40px);
+  letter-spacing: 0.02em;
+  line-height: 1.1;
   margin: 0;
   color: var(--carolina);
   text-transform: uppercase;
+  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.55);
 }
 
 .tagline { margin: 6px 0 0; color: var(--dim); font-size: 17px; }
@@ -131,7 +137,9 @@ body {
   border: 2px solid var(--line-bright);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 15px;
+  /* Silkscreen sets wider than the old mono face, so the input text is sized
+     down to keep the placeholder from clipping in the narrow sidebar. */
+  font-size: 13px;
 }
 .filters__search input:focus {
   outline: none;
@@ -206,8 +214,8 @@ body {
 .daygroup { margin-bottom: 30px; }
 
 .daygroup__header {
-  font-family: var(--mono);
-  font-size: 13px;
+  font-family: var(--display);
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--carolina);
@@ -251,8 +259,8 @@ body {
 
 .badge {
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.07em;
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 2px 6px;
   border: 1px solid var(--line-bright);
@@ -270,7 +278,7 @@ body {
 .badge--career { color: #f0d78c; border-color: #7a6a35; }
 .badge--service, .badge--health, .badge--culture { color: #9fd88f; border-color: #4a7440; }
 
-.card__title { margin: 0 0 5px; font-size: 16px; font-weight: 500; line-height: 1.3; }
+.card__title { margin: 0 0 5px; font-size: 16px; font-weight: 600; line-height: 1.3; }
 .card__title a { color: var(--text); text-decoration: none; }
 .card__title a:hover { color: var(--carolina); text-decoration: underline; }
 

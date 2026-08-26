@@ -109,3 +109,41 @@ test('a preserved lastFetchedAt keeps counting up across successive failures', (
   assert.equal(statuses[0].staleAgeHours, 48);
   assert.equal(statuses[0].lastFetchedAt, past(2), 'the original fetch time must be carried, not reset');
 });
+
+test('a source that halves between runs is flagged, not waved through', () => {
+  // The real case: the CPA scrape returned 15 of its 29 occurrences and the
+  // zero-check accepted it, silently dropping half the season from the site.
+  const statuses = [{ key: 'cpa', ok: true, count: 15 }];
+  flagSilentDropouts(statuses, { sources: [{ key: 'cpa', count: 29 }], events: [] });
+  assert.equal(statuses[0].ok, false);
+  assert.match(statuses[0].error, /down from 29/);
+});
+
+test('an ordinary decline is left alone', () => {
+  const statuses = [{ key: 'heellife', ok: true, count: 640 }];
+  flagSilentDropouts(statuses, { sources: [{ key: 'heellife', count: 650 }], events: [] });
+  assert.equal(statuses[0].ok, true);
+});
+
+test('small sources are exempt from the drop guard', () => {
+  // 4 of 8 is noise at this size, not a collapse worth failing a run over.
+  const statuses = [{ key: 'cpa', ok: true, count: 4 }];
+  flagSilentDropouts(statuses, { sources: [{ key: 'cpa', count: 8 }], events: [] });
+  assert.equal(statuses[0].ok, true);
+});
+
+test('a partial collapse still keeps the fresh events, then adds the old ones back', () => {
+  // The fresh (smaller) set is already in the pipeline; carry-forward tops it
+  // up from the last good run and dedupe merges the overlap.
+  const statuses = [{ key: 'cpa', ok: false, count: 15 }];
+  const prev = {
+    generatedAt: past(0.25),
+    sources: [{ key: 'cpa', count: 29, lastFetchedAt: past(0.25) }],
+    events: [
+      { id: 'cpa:a', source: 'cpa', title: 'Show A', start: future(20) },
+      { id: 'cpa:b', source: 'cpa', title: 'Show B', start: future(40) },
+    ],
+  };
+  const rescued = carryForwardFailed(statuses, prev, NOW);
+  assert.equal(rescued.length, 2);
+});

@@ -153,9 +153,18 @@ export default function App() {
     );
   }
 
+  /**
+   * A failed fetch is not the same as bad data. The alumni host blocks CI
+   * permanently, so that source is carried forward on essentially every run
+   * even when its copy is hours old and completely correct. Warning about that
+   * every time would put a permanent scary banner on a page meant to be shared.
+   * Only speak up once the copy is actually old enough to be wrong.
+   */
+  const STALE_WARN_HOURS = 48;
   const down = data.sources.filter((s) => !s.ok);
-  const carried = down.filter((s) => s.stale);
+  const carried = down.filter((s) => s.stale && (s.staleAgeHours ?? 0) >= STALE_WARN_HOURS);
   const missing = down.filter((s) => !s.stale);
+  const degraded = carried.length + missing.length;
 
   return (
     <main className="shell">
@@ -163,7 +172,7 @@ export default function App() {
       <header className="hero">
         <h1 className="logo">HEELSEEK</h1>
         <p className="tagline">
-          Every event at UNC Chapel Hill in one place, clubs included.
+          All UNC events
         </p>
         <div className="stats">
           <span><strong>{data.counts.total}</strong> events</span>
@@ -172,8 +181,8 @@ export default function App() {
             {/* Say "6/7" while degraded rather than "6", which reads as if a
                 calendar never existed instead of being temporarily stale. */}
             <strong>
-              {down.length > 0
-                ? `${data.sources.length - down.length}/${data.sources.length}`
+              {degraded > 0
+                ? `${data.sources.length - degraded}/${data.sources.length}`
                 : data.sources.length}
             </strong>{' '}
             sources
@@ -182,9 +191,9 @@ export default function App() {
         </div>
         {carried.length > 0 && (
           <p className="warning">
-            {carried.map((s) => s.label).join(', ')} did not respond on the last refresh,
-            so those events are the last good copy
-            {carried[0].staleAgeHours ? ` (about ${carried[0].staleAgeHours}h old)` : ''}.
+            {carried.map((s) => s.label).join(', ')} has not refreshed in about{' '}
+            {Math.round(Math.max(...carried.map((s) => s.staleAgeHours ?? 0)) / 24)} days,
+            so those events may be out of date.
           </p>
         )}
         {missing.length > 0 && (

@@ -49,7 +49,7 @@ export default function Filters({
       <div className="filters__search">
         <input
           type="search"
-          placeholder="Search events, clubs, venues..."
+          placeholder="Search events..."
           value={filters.query}
           onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
           aria-label="Search events"

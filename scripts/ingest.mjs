@@ -84,13 +84,30 @@ async function previousRun() {
  * degraded and the site names the calendar that went quiet, rather than
  * shipping a smaller world and calling it success.
  */
+// A source returning less than this share of its previous haul is suspect.
+// Set at 0.6 rather than 0.5 because the real CPA regression was 15 of 29,
+// which is 52% and would have slipped under a half threshold.
+export const DROP_GUARD = 0.6;
+
 export function flagSilentDropouts(statuses, prev) {
   if (!prev?.sources) return;
   const before = new Map(prev.sources.map((s) => [s.key, s.count]));
   for (const s of statuses) {
-    if (s.ok && s.count === 0 && (before.get(s.key) ?? 0) > 5) {
+    if (!s.ok) continue;
+    const was = before.get(s.key) ?? 0;
+
+    if (s.count === 0 && was > 5) {
       s.ok = false;
-      s.error = `returned 0 events but had ${before.get(s.key)} last run`;
+      s.error = `returned 0 events but had ${was} last run`;
+      console.error(`  DROP ${s.key.padEnd(9)} ${s.error}`);
+      continue;
+    }
+    // Partial collapse matters too. The CPA scrape came back with 15 of its 29
+    // occurrences on one run, which the zero-check happily waved through.
+    // Events do age out, but never half a source between two refreshes.
+    if (was >= 10 && s.count < was * DROP_GUARD) {
+      s.ok = false;
+      s.error = `returned ${s.count} events, down from ${was} last run`;
       console.error(`  DROP ${s.key.padEnd(9)} ${s.error}`);
     }
   }

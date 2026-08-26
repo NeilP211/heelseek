@@ -40,10 +40,19 @@ export function parseCard(card) {
 export async function fetchEvents() {
   const html = await getText(LISTING);
   const events = [];
+  const cards = splitCards(html);
+  let unparsed = 0;
 
-  for (const card of splitCards(html)) {
+  // This is the one source with no feed behind it, so the scrape is the most
+  // likely thing to quietly degrade. Log the shape of what came back: a run
+  // that suddenly sees fewer cards is a site change, not fewer concerts.
+  if (cards.length === 0) {
+    throw new Error(`${LISTING} returned no event cards (markup probably changed)`);
+  }
+
+  for (const card of cards) {
     const parsed = parseCard(card);
-    if (!parsed) continue;
+    if (!parsed) { unparsed++; continue; }
 
     const dates = parseDateList(parsed.dateText);
     if (dates.length === 0) continue;
@@ -69,5 +78,9 @@ export async function fetchEvents() {
       if (ev) events.push(ev);
     });
   }
+
+  console.log(
+    `       cpa: ${cards.length} cards, ${unparsed} unparsed, ${events.length} dated occurrences`,
+  );
   return events;
 }
