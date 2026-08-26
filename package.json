@@ -10,7 +10,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node --test test/*.test.mjs",
-    "refresh": "npm run ingest && npm run build"
+    "refresh": "npm run ingest && npm run build",
+    "preview:image": "node scripts/make-preview.mjs"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

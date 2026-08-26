@@ -31,10 +31,45 @@ body {
   background-attachment: fixed;
 }
 
+/* The page fills the tab. A single column capped at 1080px left most of a
+   desktop window empty, so above 1100px the filters become a sticky sidebar
+   and the results take the remaining width. Stretching one list to 1900px
+   instead would just make every event row unreadably wide. */
 .shell {
-  max-width: 1080px;
+  max-width: 1760px;
   margin: 0 auto;
-  padding: 32px 20px 80px;
+  padding: 32px 28px 80px;
+}
+
+@media (min-width: 1100px) {
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    gap: 30px;
+    align-items: start;
+  }
+
+  .layout__side {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    /* Keep the sidebar's own scrollbar from crowding the chips. */
+    padding-right: 4px;
+  }
+
+  .layout__main { min-width: 0; }
+
+  /* Two columns of events once there is room for them. */
+  .daygroup__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(430px, 1fr));
+    gap: 7px;
+  }
+}
+
+@media (min-width: 1500px) {
+  .shell { padding-left: 40px; padding-right: 40px; }
 }
 
 /* ---------- header ---------- */
@@ -151,7 +186,8 @@ body {
   font-size: 12px;
   text-decoration: underline;
   cursor: pointer;
-  padding: 0;
+  /* Vertical padding gives this a real tap target on a phone. */
+  padding: 6px 2px;
 }
 .filters__reset:hover { color: var(--carolina); }
 
@@ -340,3 +376,57 @@ body {
 }
 .filters__disclosure:hover { border-color: var(--carolina); color: var(--carolina); }
 .filters__disclosure em { font-style: normal; color: var(--carolina); }
+
+/* ---------- empty state ---------- */
+
+.empty {
+  border: 1px dashed var(--line-bright);
+  padding: 34px 20px;
+  text-align: center;
+  color: var(--dim);
+}
+.empty p { margin: 0 0 14px; }
+.empty .linkbtn { background: none; cursor: pointer; }
+
+/* ---------- accessibility ---------- */
+
+/* Every interactive element needs a visible keyboard focus ring, not just the
+   search box. :focus-visible keeps it off mouse clicks. */
+:focus-visible {
+  outline: 2px solid var(--carolina);
+  outline-offset: 2px;
+}
+.chip:focus-visible,
+.card__expand:focus-visible,
+.linkbtn:focus-visible,
+.loadmore:focus-visible,
+.filters__disclosure:focus-visible,
+.filters__reset:focus-visible { outline-offset: 1px; }
+
+/* Skip link so keyboard users can jump past the filter bank. */
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--carolina);
+  color: #06131c;
+  padding: 10px 14px;
+  font-family: var(--mono);
+  font-size: 13px;
+  z-index: 10;
+}
+.skip:focus { left: 8px; top: 8px; }
+
+/* ---------- sidebar-shaped filters ---------- */
+
+@media (min-width: 1100px) {
+  .layout__side .filters { margin-bottom: 0; }
+  /* In a narrow column the inline label plus chips wrap badly, so stack them. */
+  .layout__side .filters__row { display: block; }
+  .layout__side .filters__label { display: block; margin-bottom: 7px; min-width: 0; }
+}
+
+@media (min-width: 1100px) {
+  /* The grid supplies the gap; the card's own margin would double it. */
+  .daygroup__list .card { margin-bottom: 0; }
+}

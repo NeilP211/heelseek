@@ -84,9 +84,11 @@ export default function App() {
       .sort((a, b) => b.count - a.count);
   }, [inRange]);
 
-  const filtered = useMemo(() => {
+  // Everything except the date range, so the same predicate can answer both
+  // "what matches now" and "would this match if the range were wider".
+  const matchesFilters = useMemo(() => {
     const q = filters.query.trim().toLowerCase();
-    return inRange.filter((e) => {
+    return (e) => {
       if (filters.freeFood && !e.freeFood) return false;
       if (filters.free && !e.free && !e.freeFood) return false;
       if (filters.categories.size && !filters.categories.has(e.category)) return false;
@@ -96,8 +98,21 @@ export default function App() {
         if (!hay.includes(q)) return false;
       }
       return true;
-    });
-  }, [inRange, filters]);
+    };
+  }, [filters]);
+
+  const filtered = useMemo(() => inRange.filter(matchesFilters), [inRange, matchesFilters]);
+
+  /**
+   * Searching "basketball" in August legitimately returns nothing, because the
+   * default window is seven days and the season starts in October. Silently
+   * showing an empty list makes the app look broken, so when the only thing
+   * excluding results is the date range, say so and offer to widen it.
+   */
+  const beyondRange = useMemo(() => {
+    if (filtered.length > 0 || filters.range === 'all') return 0;
+    return events.filter(matchesFilters).length;
+  }, [filtered.length, filters.range, events, matchesFilters]);
 
   const visible = filtered.slice(0, limit);
 
@@ -142,6 +157,7 @@ export default function App() {
 
   return (
     <main className="shell">
+      <a className="skip" href="#results">Skip to events</a>
       <header className="hero">
         <h1 className="logo">HEELSEEK</h1>
         <p className="tagline">
@@ -161,35 +177,69 @@ export default function App() {
         )}
       </header>
 
-      <Filters
-        filters={filters}
-        setFilters={setFilters}
-        categories={categories}
-        sources={sources}
-        counts={counts}
-        onReset={() => setFilters(initialFilters())}
-      />
+      <div className="layout">
+        <aside className="layout__side">
+          <Filters
+            filters={filters}
+            setFilters={setFilters}
+            categories={categories}
+            sources={sources}
+            counts={counts}
+            onReset={() => setFilters(initialFilters())}
+          />
+        </aside>
 
-      <div className="resultcount">
-        {filtered.length === 0
-          ? 'Nothing matches those filters.'
-          : `${filtered.length} event${filtered.length === 1 ? '' : 's'}`}
-      </div>
-
-      <section className="results">
-        {grouped.map((group) => (
-          <div className="daygroup" key={group.key}>
-            <h2 className="daygroup__header">{formatDayHeader(group.key)}</h2>
-            {group.events.map((e) => <EventCard key={e.id} event={e} />)}
+        <div className="layout__main" id="results">
+          <div className="resultcount" role="status" aria-live="polite">
+            {filtered.length === 0
+              ? 'Nothing matches those filters.'
+              : `${filtered.length} event${filtered.length === 1 ? '' : 's'}`}
           </div>
-        ))}
-      </section>
 
-      {filtered.length > limit && (
-        <button className="loadmore" onClick={() => setLimit((l) => l + PAGE)}>
-          Show {Math.min(PAGE, filtered.length - limit)} more
-        </button>
-      )}
+          {filtered.length === 0 ? (
+            <div className="empty">
+              {beyondRange > 0 ? (
+                <>
+                  <p>
+                    Nothing in this date range, but <strong>{beyondRange}</strong>{' '}
+                    {beyondRange === 1 ? 'event matches' : 'events match'} further out.
+                  </p>
+                  <button
+                    className="linkbtn"
+                    onClick={() => setFilters((f) => ({ ...f, range: 'all' }))}
+                  >
+                    Search the whole year
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p>No events match what you picked.</p>
+                  <button className="linkbtn" onClick={() => setFilters(initialFilters())}>
+                    Clear filters
+                  </button>
+                </>
+              )}
+            </div>
+          ) : (
+            <section className="results">
+              {grouped.map((group) => (
+                <div className="daygroup" key={group.key}>
+                  <h2 className="daygroup__header">{formatDayHeader(group.key)}</h2>
+                  <div className="daygroup__list">
+                    {group.events.map((e) => <EventCard key={e.id} event={e} />)}
+                  </div>
+                </div>
+              ))}
+            </section>
+          )}
+
+          {filtered.length > limit && (
+            <button className="loadmore" onClick={() => setLimit((l) => l + PAGE)}>
+              Show {Math.min(PAGE, filtered.length - limit)} more
+            </button>
+          )}
+        </div>
+      </div>
 
       <footer className="foot">
         <p>

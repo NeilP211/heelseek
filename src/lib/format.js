@@ -32,6 +32,21 @@ export function formatTime(iso, allDay) {
   return timeFmt.format(new Date(iso)).replace(':00', '').toLowerCase();
 }
 
+/**
+ * Label for an event's end. When the event finishes on a different Chapel Hill
+ * day, the date has to come with it: a three day symposium rendered as
+ * "to 2:30 pm" reads as a two and a half hour afternoon event.
+ */
+export function formatEndLabel(startIso, endIso) {
+  if (!endIso) return null;
+  const time = formatTime(endIso);
+  if (dayKey(startIso) === dayKey(endIso)) return `to ${time}`;
+  const dayLabel = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ, month: 'short', day: 'numeric',
+  }).format(new Date(endIso));
+  return `to ${dayLabel}, ${time}`;
+}
+
 export function formatDayHeader(key) {
   const [y, m, d] = key.split('-').map(Number);
   // Noon UTC keeps the label on the intended day in every US zone.

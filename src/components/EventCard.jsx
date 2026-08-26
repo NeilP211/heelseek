@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatTime, calendarLink } from '../lib/format.js';
+import { formatTime, formatEndLabel, calendarLink } from '../lib/format.js';
 
 const SOURCE_SHORT = {
   heellife: 'HEEL LIFE',
@@ -20,7 +20,7 @@ export default function EventCard({ event }) {
       <div className="card__time">
         <span className="card__time-value">{formatTime(event.start, event.allDay)}</span>
         {event.end && !event.allDay && (
-          <span className="card__time-end">to {formatTime(event.end)}</span>
+          <span className="card__time-end">{formatEndLabel(event.start, event.end)}</span>
         )}
       </div>
 
@@ -44,7 +44,11 @@ export default function EventCard({ event }) {
 
         <div className="card__meta">
           {event.org && <span className="card__org">{event.org}</span>}
-          {event.venue && <span className="card__venue">{event.venue}</span>}
+          {/* Venue sites set org and venue to the same name, which reads as a
+              stutter ("Ackland Art Museum  Ackland Art Museum"). */}
+          {event.venue && event.venue !== event.org && (
+            <span className="card__venue">{event.venue}</span>
+          )}
           {event.rsvps > 0 && <span className="card__rsvp">{event.rsvps} going</span>}
         </div>
 

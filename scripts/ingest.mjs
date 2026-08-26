@@ -25,11 +25,19 @@ const HORIZON_DAYS = 365;
 // A refresh that loses more than this share of events is treated as suspect.
 const SHRINK_GUARD = 0.5;
 
+// One entry per calendar, deliberately not per adapter: Ackland and Morehead
+// share the tribe adapter but are separate calendars, and collapsing them made
+// the site report six sources while its own events carried seven.
 const SOURCES = [
   { key: 'heellife', label: 'Heel Life (clubs)', home: heellife.meta.home, run: () => heellife.fetchEvents() },
   { key: 'localist', label: 'UNC Main Calendar', home: localist.meta.home, run: () => localist.fetchEvents({ days: HORIZON_DAYS }) },
   { key: 'goheels', label: 'Carolina Athletics', home: goheels.meta.home, run: () => goheels.fetchEvents() },
-  { key: 'venues', label: 'Ackland and Morehead', home: 'https://ackland.org', run: () => tribe.fetchEvents() },
+  ...tribe.SITES.map((site) => ({
+    key: site.key,
+    label: site.label,
+    home: site.home,
+    run: () => tribe.fetchSite(site),
+  })),
   { key: 'alumni', label: 'Carolina Alumni', home: alumni.meta.home, run: () => alumni.fetchEvents() },
   { key: 'cpa', label: 'Carolina Performing Arts', home: cpa.meta.home, run: () => cpa.fetchEvents() },
 ];
