@@ -168,7 +168,16 @@ export default function App() {
         <div className="stats">
           <span><strong>{data.counts.total}</strong> events</span>
           <span><strong>{data.counts.freeFood}</strong> with free food</span>
-          <span><strong>{data.sources.filter((s) => s.ok).length}</strong> sources</span>
+          <span>
+            {/* Say "6/7" while degraded rather than "6", which reads as if a
+                calendar never existed instead of being temporarily stale. */}
+            <strong>
+              {down.length > 0
+                ? `${data.sources.length - down.length}/${data.sources.length}`
+                : data.sources.length}
+            </strong>{' '}
+            sources
+          </span>
           <span className="stats__updated">updated {formatRelative(data.generatedAt)}</span>
         </div>
         {carried.length > 0 && (
