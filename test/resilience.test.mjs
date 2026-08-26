@@ -85,3 +85,27 @@ test('staleAgeHours is reported so the page can say how old the copy is', () => 
   carryForwardFailed(statuses, prevRun({ generatedAt: past(0.5) }), NOW);
   assert.equal(statuses[0].staleAgeHours, 12);
 });
+
+test('staleness is measured from the last real fetch, not the payload timestamp', () => {
+  // Carrying data forward rewrites generatedAt every run. If age came from
+  // that, stale data would look fresh forever and never age out.
+  const statuses = [{ key: 'alumni', ok: false, count: 0 }];
+  const prev = prevRun({
+    generatedAt: past(0),                  // rewritten by the last carry-forward
+    sources: [{ key: 'alumni', ok: false, stale: true, lastFetchedAt: past(MAX_STALE_DAYS + 2) }],
+  });
+  assert.deepEqual(carryForwardFailed(statuses, prev, NOW), [],
+    'should refuse data whose last real fetch is beyond the limit');
+  assert.equal(statuses[0].stale, undefined);
+});
+
+test('a preserved lastFetchedAt keeps counting up across successive failures', () => {
+  const statuses = [{ key: 'alumni', ok: false, count: 0 }];
+  const prev = prevRun({
+    generatedAt: past(0),
+    sources: [{ key: 'alumni', ok: false, stale: true, lastFetchedAt: past(2) }],
+  });
+  carryForwardFailed(statuses, prev, NOW);
+  assert.equal(statuses[0].staleAgeHours, 48);
+  assert.equal(statuses[0].lastFetchedAt, past(2), 'the original fetch time must be carried, not reset');
+});

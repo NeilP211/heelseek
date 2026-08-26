@@ -48,7 +48,13 @@ async function runSource(source) {
     const events = await source.run();
     const ms = Date.now() - started;
     console.log(`  ok   ${source.key.padEnd(9)} ${String(events.length).padStart(5)} events  ${ms}ms`);
-    return { events, status: { key: source.key, label: source.label, ok: true, count: events.length, ms } };
+    return {
+      events,
+      status: {
+        key: source.key, label: source.label, ok: true,
+        count: events.length, ms, lastFetchedAt: new Date().toISOString(),
+      },
+    };
   } catch (err) {
     console.error(`  FAIL ${source.key.padEnd(9)} ${err.message}`);
     return { events: [], status: { key: source.key, label: source.label, ok: false, count: 0, error: err.message } };
@@ -107,21 +113,37 @@ export const MAX_STALE_DAYS = 45;
  */
 export function carryForwardFailed(statuses, prev, now) {
   if (!prev?.events?.length) return [];
-  const ageDays = (now - new Date(prev.generatedAt)) / 86_400_000;
-  if (!Number.isFinite(ageDays) || ageDays > MAX_STALE_DAYS) return [];
+  const prevStatus = new Map((prev.sources ?? []).map((s) => [s.key, s]));
 
   const rescued = [];
   for (const s of statuses) {
     if (s.ok) continue;
+
+    // Age is measured from when this source was last genuinely fetched, not
+    // from the payload timestamp. Carrying data forward rewrites the payload
+    // timestamp every run, so trusting that would make stale data look fresh
+    // forever and the staleness limit would never trip.
+    const lastFetched = prevStatus.get(s.key)?.lastFetchedAt ?? prev.generatedAt;
+    const ageDays = (now - new Date(lastFetched)) / 86_400_000;
+    if (!Number.isFinite(ageDays) || ageDays > MAX_STALE_DAYS) {
+      console.error(`  DROP ${s.key.padEnd(9)} last good copy is too old to reuse`);
+      continue;
+    }
+
     const kept = prev.events.filter(
       (e) => e.source === s.key && Date.parse(e.start) >= now.getTime(),
     );
     if (kept.length === 0) continue;
+
     rescued.push(...kept);
     s.stale = true;
     s.count = kept.length;
+    s.lastFetchedAt = lastFetched;
     s.staleAgeHours = Math.round(ageDays * 24);
-    console.log(`  KEEP ${s.key.padEnd(9)} ${kept.length} events carried over from the last good run`);
+    console.log(
+      `  KEEP ${s.key.padEnd(9)} ${kept.length} events carried over ` +
+      `(last real fetch ${s.staleAgeHours}h ago)`,
+    );
   }
   return rescued;
 }
