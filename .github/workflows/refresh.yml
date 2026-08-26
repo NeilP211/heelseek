@@ -1,0 +1,67 @@
+name: Refresh events and deploy
+
+on:
+  schedule:
+    # Every 3 hours. Campus events get posted and cancelled through the day,
+    # and Heel Life in particular changes constantly during the semester.
+    - cron: '17 */3 * * *'
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Every source is a public feed, so this workflow needs no secrets at all.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never let a scheduled run and a push run race each other onto Pages.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Pull every calendar
+        run: npm run ingest
+
+      - name: Build site
+        run: npm run build
+
+      - name: Report what shipped
+        run: |
+          node -e "
+            const d = require('./public/data/events.json');
+            const ok = d.sources.filter(s => s.ok).length;
+            console.log(\`\${d.counts.total} events, \${d.counts.freeFood} with free food, \${ok}/\${d.sources.length} sources ok\`);
+            for (const s of d.sources) console.log(\` \${s.ok ? 'ok  ' : 'FAIL'} \${s.key.padEnd(10)} \${s.count}\`);
+          "
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
