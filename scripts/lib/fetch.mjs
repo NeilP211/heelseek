@@ -26,7 +26,21 @@ export async function get(url, { timeout = DEFAULT_TIMEOUT, retries = 2, headers
     try {
       const res = await fetch(url, {
         signal: controller.signal,
-        headers: { 'User-Agent': UA, Accept: '*/*', ...headers },
+        headers: {
+          'User-Agent': UA,
+          // A bare UA is not enough for the WAF in front of alumni.unc.edu.
+          // Sending the header set a real Chrome sends costs nothing and gets
+          // through filters that score requests on how browser-like they look.
+          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,text/calendar;q=0.8,*/*;q=0.7',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+          'Sec-Fetch-Dest': 'document',
+          'Sec-Fetch-Mode': 'navigate',
+          'Sec-Fetch-Site': 'none',
+          'Upgrade-Insecure-Requests': '1',
+          ...headers,
+        },
       });
       if (!res.ok) {
         // 4xx other than 429 will not fix themselves, so stop early.
