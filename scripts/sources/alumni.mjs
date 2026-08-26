@@ -4,7 +4,7 @@
 // This is the feed that carries things like Welcome Wednesdays.
 
 import { getText } from '../lib/fetch.mjs';
-import { parseIcs } from '../lib/ics.mjs';
+import { parseIcs, assertIcs } from '../lib/ics.mjs';
 import { makeEvent } from '../lib/normalize.mjs';
 
 const FEED = 'https://alumni.unc.edu/?ical=1';
@@ -32,7 +32,7 @@ export function stripDateHeader(description = '') {
 }
 
 export async function fetchEvents() {
-  const raw = await getText(FEED);
+  const raw = assertIcs(await getText(FEED), FEED);
   const vevents = parseIcs(raw);
   const events = [];
 

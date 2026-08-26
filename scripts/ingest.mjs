@@ -56,12 +56,29 @@ function withinHorizon(events, now) {
   });
 }
 
-async function previousCount() {
+async function previousRun() {
   try {
-    const prev = JSON.parse(await readFile(OUT, 'utf8'));
-    return Array.isArray(prev.events) ? prev.events.length : 0;
+    return JSON.parse(await readFile(OUT, 'utf8'));
   } catch {
-    return 0;
+    return null;
+  }
+}
+
+/**
+ * A source that used to return events and now returns none did not become
+ * genuinely empty overnight. Treat that as a failure so the run is marked
+ * degraded and the site names the calendar that went quiet, rather than
+ * shipping a smaller world and calling it success.
+ */
+function flagSilentDropouts(statuses, prev) {
+  if (!prev?.sources) return;
+  const before = new Map(prev.sources.map((s) => [s.key, s.count]));
+  for (const s of statuses) {
+    if (s.ok && s.count === 0 && (before.get(s.key) ?? 0) > 5) {
+      s.ok = false;
+      s.error = `returned 0 events but had ${before.get(s.key)} last run`;
+      console.error(`  DROP ${s.key.padEnd(9)} ${s.error}`);
+    }
   }
 }
 
@@ -79,13 +96,16 @@ async function main() {
   const scoped = withinHorizon(all, now);
   const deduped = dedupe(scoped).sort((a, b) => a.start.localeCompare(b.start));
 
+  const prev = await previousRun();
+  flagSilentDropouts(statuses, prev);
+
   const okCount = statuses.filter((s) => s.ok).length;
   if (okCount === 0) {
     console.error('every source failed, refusing to write');
     process.exit(1);
   }
 
-  const before = await previousCount();
+  const before = Array.isArray(prev?.events) ? prev.events.length : 0;
   if (before > 50 && deduped.length < before * SHRINK_GUARD) {
     console.error(
       `refusing to write: ${deduped.length} events is a big drop from ${before}. ` +

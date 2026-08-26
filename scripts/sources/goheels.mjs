@@ -2,7 +2,7 @@
 // department schedule as one public ICS feed. No API key, every sport included.
 
 import { getText } from '../lib/fetch.mjs';
-import { parseIcs } from '../lib/ics.mjs';
+import { parseIcs, assertIcs } from '../lib/ics.mjs';
 import { makeEvent } from '../lib/normalize.mjs';
 
 const FEED = 'https://goheels.com/calendar.ashx/calendar.ics';
@@ -24,7 +24,7 @@ export function extractSport(summary = '') {
 }
 
 export async function fetchEvents() {
-  const raw = await getText(FEED);
+  const raw = assertIcs(await getText(FEED), FEED);
   const vevents = parseIcs(raw);
   const events = [];
 

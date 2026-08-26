@@ -67,6 +67,28 @@ export function easternToIso(year, month, day, hour, minute, second = 0) {
   return new Date(Date.UTC(year, month - 1, day, hour + 4, minute, second)).toISOString();
 }
 
+/**
+ * Confirm a response really is an iCalendar document before parsing it.
+ *
+ * This exists because a WAF in front of a calendar host will happily answer a
+ * feed request with HTTP 200 and an HTML challenge page. parseIcs finds no
+ * VEVENT blocks in that, returns an empty array, and the source silently
+ * reports zero events as a success. Failing loudly here means the run is
+ * marked degraded and the site says so, instead of quietly losing a calendar.
+ */
+export function assertIcs(raw, url) {
+  const head = raw.slice(0, 2000);
+  if (!/BEGIN:VCALENDAR/i.test(head)) {
+    const looksLikeHtml = /<html|<!doctype/i.test(head);
+    throw new Error(
+      looksLikeHtml
+        ? `${url} returned HTML instead of iCalendar (likely a bot challenge or redirect)`
+        : `${url} did not return an iCalendar document`,
+    );
+  }
+  return raw;
+}
+
 /** Parse a VCALENDAR body into an array of plain VEVENT objects. */
 export function parseIcs(raw) {
   const lines = unfold(raw).split('\n');

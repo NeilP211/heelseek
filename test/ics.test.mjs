@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { unfold, unescapeValue, parseIcsDate, easternToIso, parseIcs } from '../scripts/lib/ics.mjs';
+import { unfold, unescapeValue, parseIcsDate, easternToIso, parseIcs, assertIcs } from '../scripts/lib/ics.mjs';
 
 test('unfolds continuation lines that start with a space or tab', () => {
   // The fold marker itself is consumed, so a space-folded line rejoins with
@@ -97,4 +97,22 @@ test('a folded DESCRIPTION rejoins into one value', () => {
   ].join('\r\n');
   const [ev] = parseIcs(raw);
   assert.equal(ev.DESCRIPTION, 'Stop by for bagels and coffee, while supplies last.');
+});
+
+test('assertIcs rejects an HTML bot-challenge page served with HTTP 200', () => {
+  // The exact failure that made a live source report zero events as success.
+  assert.throws(
+    () => assertIcs('<!DOCTYPE html><html><head><title>Just a moment...</title>', 'https://x/ical'),
+    /HTML instead of iCalendar/,
+  );
+});
+
+test('assertIcs rejects any other non-calendar body', () => {
+  assert.throws(() => assertIcs('{"error":"nope"}', 'https://x/ical'), /did not return an iCalendar/);
+  assert.throws(() => assertIcs('', 'https://x/ical'), /did not return an iCalendar/);
+});
+
+test('assertIcs passes a real calendar through untouched', () => {
+  const raw = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR';
+  assert.equal(assertIcs(raw, 'https://x/ical'), raw);
 });
