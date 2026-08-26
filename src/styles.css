@@ -36,7 +36,10 @@ body {
    and the results take the remaining width. Stretching one list to 1900px
    instead would just make every event row unreadably wide. */
 .shell {
-  max-width: 1760px;
+  /* Wide enough to keep filling a big monitor (the results grid just adds
+     another column), capped so an ultrawide does not end up with eight
+     columns of unreadable slivers. */
+  max-width: 2200px;
   margin: 0 auto;
   padding: 32px 28px 80px;
 }
@@ -430,3 +433,24 @@ body {
   /* The grid supplies the gap; the card's own margin would double it. */
   .daygroup__list .card { margin-bottom: 0; }
 }
+
+/* ---------- overflow hardening ---------- */
+
+/* Grid and flex children default to min-width:auto, which lets a single long
+   token push a track wider than its container and drag the whole page sideways.
+   Pinning them to zero plus wrapping long words makes that impossible whatever
+   a campus calendar puts in a title. */
+.layout__main,
+.layout__side,
+.daygroup,
+.daygroup__list,
+.daygroup__list > .card,
+.card__body { min-width: 0; }
+
+.card__title,
+.card__desc,
+.card__meta span,
+.daygroup__header { overflow-wrap: anywhere; }
+
+/* Last-resort clamp: nothing may make the document scroll sideways. */
+html, body { max-width: 100%; overflow-x: hidden; }
