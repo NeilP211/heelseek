@@ -11,6 +11,10 @@ on:
   schedule:
     - cron: '29 14 * * 1'
   workflow_dispatch:
+    inputs:
+      threshold_days:
+        description: Commit when the newest commit is at least this many days old (0 forces a commit)
+        default: '45'
 
 permissions:
   contents: write
@@ -35,10 +39,12 @@ jobs:
           done
 
       - name: Commit a timestamp if the repo has been quiet for 45 days
+        env:
+          THRESHOLD: ${{ inputs.threshold_days || '45' }}
         run: |
           age=$(( ( $(date +%s) - $(git log -1 --format=%ct) ) / 86400 ))
           echo "newest commit is $age days old"
-          if [ "$age" -lt 45 ]; then
+          if [ "$age" -lt "$THRESHOLD" ]; then
             echo "recent enough, nothing to do"
             exit 0
           fi
